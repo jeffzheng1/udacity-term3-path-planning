@@ -246,28 +246,56 @@ int main() {
 			}
 
 			bool too_close = false;
+			bool left_side_clear = true;
+			bool right_side_clear = true;
 
+            // get into the desired state given the sensor readings
 			for (int i = 0; i < sensor_fusion.size(); i++)
 			{
 				float d = sensor_fusion[i][6];
-				if(d < (2+4*lane+2) && d > (2+4*lane-2))
+				if(d < (2+4*lane+2) && d > (2+4*lane-2)) {
+					double vx = sensor_fusion[i][3];
+					double vy = sensor_fusion[i][4];
+					double check_speed = sqrt(vx * vx + vy * vy);
+					double check_car_s = sensor_fusion[i][5];
+					check_car_s += ((double) prev_size * .02 * check_speed);
+
+					if ((check_car_s > car_s) && (check_car_s - car_s < 25)) {
+						too_close = true;
+					}
+				} else if (lane > 0 && d < (2+4*(lane-1)+2) && d > (2+4*(lane-1)-2))
 				{
 					double vx = sensor_fusion[i][3];
 					double vy = sensor_fusion[i][4];
-					double check_speed = sqrt(vx*vx+vy*vy);
-                    double check_car_s = sensor_fusion[i][5];
-					check_car_s += ((double)prev_size*.02*check_speed);
-
-					if((check_car_s > car_s) && (check_car_s-car_s < 30))
-					{
-						too_close = true;
+					double check_speed = sqrt(vx * vx + vy * vy);
+					double check_car_s = sensor_fusion[i][5];
+					if (abs(check_car_s - car_s) < 25) {
+						left_side_clear = false;
+					}
+				} else if (lane < 2 && (d < (2+4*(lane+1)+2)) && (d > (2+4*(lane+1)-2)))
+				{
+					double vx = sensor_fusion[i][3];
+					double vy = sensor_fusion[i][4];
+					double check_speed = sqrt(vx * vx + vy * vy);
+					double check_car_s = sensor_fusion[i][5];
+					if (abs(check_car_s - car_s) < 25) {
+						right_side_clear = false;
 					}
 				}
 			}
 
 			if(too_close)
 			{
-				ref_vel -= .224;
+				if (lane < 2 && right_side_clear)
+				{
+					lane++;
+				} else if (lane > 0 && left_side_clear)
+				{
+					lane--;
+				}
+				else {
+					ref_vel -= .224;
+				}
 			}
 			else if (ref_vel <= 49.5)
 			{
